@@ -3,7 +3,7 @@ import json
 
 app = Flask(__name__)
 
-@app.route('/submit', methods=['POST'])
+@app.route('/submit', methods=['GET'])
 def submit():
     data = request.get_json()
     question = data.get('question')
