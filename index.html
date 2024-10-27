@@ -80,17 +80,23 @@
 
         // Charger les réponses depuis le Gist
         async function loadResponses() {
-            const response = await fetch(GIST_URL, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
+            try {
+                const response = await fetch(GIST_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
 
-            const gistData = await response.json();
-            const fileContent = gistData.files["data.json"].content;
-            responses = JSON.parse(fileContent);
+                if (!response.ok) throw new Error('Erreur lors du chargement des réponses.');
+
+                const gistData = await response.json();
+                const fileContent = gistData.files["data.json"].content;
+                responses = JSON.parse(fileContent);
+            } catch (error) {
+                console.error('Erreur dans loadResponses:', error);
+            }
         }
 
         document.getElementById('send-btn').addEventListener('click', sendMessage);
@@ -187,21 +193,28 @@
             responses[question] = newResponse;
             const updatedContent = JSON.stringify(responses, null, 2);
 
-            await fetch(GIST_URL, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: {
-                        "data.json": {
-                            content: updatedContent
+            try {
+                const response = await fetch(GIST_URL, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            "data.json": {
+                                content: updatedContent
+                            }
                         }
-                    }
-                })
-            });
+                    })
+                });
+
+                if (!response.ok) throw new Error('Erreur lors de la mise à jour des réponses.');
+
+            } catch (error) {
+                console.error('Erreur dans updateResponse:', error);
+            }
         }
 
         function askFeedback(response, question) {
