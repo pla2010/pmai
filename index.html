@@ -3,194 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA Conversationnelle</title>
+    <title>IA Interactive</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background-color: #f4f4f4; 
-            color: #333;
-        }
-        h1 { 
-            text-align: center; 
-            color: #007BFF; 
-        }
-        #chat { 
-            border: 1px solid #ccc; 
-            border-radius: 5px;
-            padding: 10px; 
-            max-height: 400px; 
-            overflow-y: scroll; 
-            background-color: #fff; 
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 10px;
-        }
-        .message { 
-            margin: 5px 0; 
-            padding: 5px; 
-            border-radius: 4px; 
-        }
-        .user { 
-            background-color: #007BFF; 
-            color: white; 
-            text-align: right; 
-        }
-        .ai { 
-            background-color: #d4edda; 
-            color: #155724; 
-        }
-        input[type="text"] { 
-            width: calc(100% - 22px); 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-            margin-right: 5px; 
-        }
-        button { 
-            padding: 10px; 
-            border: none; 
-            border-radius: 5px; 
-            background-color: #007BFF; 
-            color: white; 
-            cursor: pointer; 
-            transition: background-color 0.3s;
-        }
-        button:hover { 
-            background-color: #0056b3; 
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #chat { max-width: 500px; margin: 0 auto; }
+        .message { padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .user { background-color: #d9fdd3; text-align: right; }
+        .ia { background-color: #f0f0f0; text-align: left; }
     </style>
 </head>
 <body>
-    <h1>Interagissez avec l'IA</h1>
-    <div id="chat"></div>
-    <input type="text" id="userInput" placeholder="Tapez votre question..." />
-    <button onclick="sendMessage()">Envoyer</button>
+    <div id="chat">
+        <h2>IA Interactive</h2>
+        <div id="messages"></div>
+        <input type="text" id="input" placeholder="Posez votre question...">
+        <button onclick="sendQuestion()">Envoyer</button>
+    </div>
 
     <script>
-        const GITHUB_TOKEN = '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'; // Remplace par ton token GitHub
-        const GIST_URL = 'https://api.github.com/gists/9fda467fa7fd887d33b6640dee366042'; // Remplace par l'URL de ton Gist
-        let responses = {};
-
-        // Charger les réponses depuis le Gist
         async function loadResponses() {
-            try {
-                const response = await fetch(GIST_URL, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-
-                if (!response.ok) throw new Error('Erreur lors du chargement des réponses.');
-
-                const gistData = await response.json();
-                const fileContent = gistData.files["data.json"].content;
-                responses = JSON.parse(fileContent);
-            } catch (error) {
-                console.error('Erreur dans loadResponses:', error);
-            }
+            const response = await fetch('data.json');
+            return await response.json();
         }
 
-        // Envoyer un message à l'IA
-        async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const userMessage = input.value.trim();
-            if (userMessage === '') return;
-
-            appendMessage('Vous: ' + userMessage, 'user');
-            input.value = '';
-
-            const response = getResponse(userMessage);
-            appendMessage('IA: ' + response.message, 'ai');
-
-            if (response.isSimilar) {
-                await askForConfirmation(response.message, userMessage);
-            } else if (response.isNew) {
-                await askForNewResponse(userMessage);
-            }
+        async function saveResponses(data) {
+            const response = await fetch('data.json', {
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return await response.json();
         }
 
-        // Fonction pour obtenir la réponse de l'IA
-        function getResponse(question) {
-            question = question.toLowerCase();
-            let isSimilar = false;
-            let isNew = true;
-            let message = '';
+        async function sendQuestion() {
+            const question = document.getElementById('input').value;
+            displayMessage(question, 'user');
+            const responses = await loadResponses();
 
-            for (const key in responses) {
-                if (key.toLowerCase() === question) {
-                    message = responses[key];
-                    isNew = false;
-                    break;
-                } else if (key.toLowerCase().includes(question) || question.includes(key.toLowerCase())) {
-                    message = responses[key];
-                    isSimilar = true;
-                    break;
+            const similarQuestion = findSimilarQuestion(responses, question);
+
+            if (similarQuestion) {
+                displayMessage(responses[similarQuestion], 'ia');
+            } else {
+                const newResponse = prompt("Je ne connais pas cette question. Quelle est la réponse ?");
+                if (newResponse) {
+                    responses[question] = newResponse;
+                    await saveResponses(responses);
+                    displayMessage("Réponse enregistrée !", 'ia');
                 }
             }
-
-            return { message, isSimilar, isNew };
+            document.getElementById('input').value = '';
         }
 
-        // Demander confirmation pour les réponses similaires
-        async function askForConfirmation(responseMessage, question) {
-            const confirmation = confirm(`L'IA a répondu : "${responseMessage}". Est-ce correct ?`);
-            if (!confirmation) {
-                await askForNewResponse(question);
-            }
+        function displayMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+            document.getElementById('messages').appendChild(msgDiv);
         }
 
-        // Demander la nouvelle réponse à sauvegarder
-        async function askForNewResponse(question) {
-            const newResponse = prompt(`Quelle est la bonne réponse pour "${question}" ?`);
-            if (newResponse) {
-                responses[question.toLowerCase()] = newResponse;
-                await updateGist();
-                appendMessage('IA: Réponse sauvegardée !', 'ai');
-            }
+        function findSimilarQuestion(responses, newQuestion) {
+            return Object.keys(responses).find(
+                question => newQuestion.toLowerCase().includes(question.toLowerCase())
+            );
         }
-
-        // Mettre à jour le Gist avec les nouvelles réponses
-        async function updateGist() {
-            const updatedContent = JSON.stringify(responses, null, 2);
-            try {
-                const response = await fetch(GIST_URL, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `token ${GITHUB_TOKEN}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        files: {
-                            "data.json": {
-                                content: updatedContent
-                            }
-                        }
-                    })
-                });
-
-                if (!response.ok) throw new Error('Erreur lors de la mise à jour du Gist.');
-
-                console.log('Réponse mise à jour avec succès dans le Gist.');
-            } catch (error) {
-                console.error('Erreur dans updateGist:', error);
-            }
-        }
-
-        // Ajouter un message au chat
-        function appendMessage(message, className) {
-            const chat = document.getElementById('chat');
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message ' + className;
-            messageElement.textContent = message;
-            chat.appendChild(messageElement);
-            chat.scrollTop = chat.scrollHeight; // Faire défiler vers le bas
-        }
-
-        // Charger les réponses au chargement de la page
-        window.onload = loadResponses;
     </script>
 </body>
 </html>
