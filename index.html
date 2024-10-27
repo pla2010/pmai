@@ -5,13 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IA Conversationnelle</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #chat { border: 1px solid #ccc; padding: 10px; max-height: 400px; overflow-y: scroll; }
-        .message { margin: 5px 0; }
-        .user { font-weight: bold; }
-        .ai { color: green; }
-        input[type="text"] { width: calc(100% - 22px); padding: 10px; }
-        button { padding: 10px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f4f4f4; 
+            color: #333;
+        }
+        h1 { 
+            text-align: center; 
+            color: #007BFF; 
+        }
+        #chat { 
+            border: 1px solid #ccc; 
+            border-radius: 5px;
+            padding: 10px; 
+            max-height: 400px; 
+            overflow-y: scroll; 
+            background-color: #fff; 
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+        .message { 
+            margin: 5px 0; 
+            padding: 5px; 
+            border-radius: 4px; 
+        }
+        .user { 
+            background-color: #007BFF; 
+            color: white; 
+            text-align: right; 
+        }
+        .ai { 
+            background-color: #d4edda; 
+            color: #155724; 
+        }
+        input[type="text"] { 
+            width: calc(100% - 22px); 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            margin-right: 5px; 
+        }
+        button { 
+            padding: 10px; 
+            border: none; 
+            border-radius: 5px; 
+            background-color: #007BFF; 
+            color: white; 
+            cursor: pointer; 
+            transition: background-color 0.3s;
+        }
+        button:hover { 
+            background-color: #0056b3; 
+        }
     </style>
 </head>
 <body>
