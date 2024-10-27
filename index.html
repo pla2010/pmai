@@ -1,157 +1,112 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IA Interactive</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            background-color: #f2f2f2;
-        }
-        #chat-container {
-            width: 100%;
-            max-width: 600px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
-        .message {
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .user-message {
-            background-color: #d1e7dd;
-            text-align: right;
-        }
-        .bot-message {
-            background-color: #ffeeba;
-            text-align: left;
-        }
-        #input-container {
-            display: flex;
-            margin-top: 10px;
-        }
-        #input-container input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 8px 0 0 8px;
-        }
-        #input-container button {
-            padding: 10px;
-            border: none;
-            background-color: #007bff;
-            color: #fff;
-            border-radius: 0 8px 8px 0;
-            cursor: pointer;
-        }
-        #input-container button:hover {
-            background-color: #0056b3;
-        }
+        /* Styles de base */
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        #chatbox { max-width: 600px; width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background-color: #f9f9f9; }
+        #messages { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
+        #messages li { margin: 5px 0; }
+        #userInput { width: calc(100% - 60px); padding: 8px; margin-top: 10px; }
+        #sendBtn { padding: 8px 15px; }
+        .user-message { color: blue; }
+        .ia-message { color: green; }
     </style>
 </head>
 <body>
 
-<div id="chat-container">
-    <div id="chat-log"></div>
-    <div id="input-container">
-        <input type="text" id="user-input" placeholder="Posez une question...">
-        <button onclick="sendMessage()">Envoyer</button>
+    <h1>Interaction avec l'IA</h1>
+    <div id="chatbox">
+        <ul id="messages"></ul>
+        <input type="text" id="userInput" placeholder="Écris quelque chose..." />
+        <button id="sendBtn">Envoyer</button>
     </div>
-</div>
 
-<script>
-    let responses = {};
+    <script>
+        // URL du fichier JSON local
+        const jsonURL = "data.json"; // Assure-toi que ce fichier est à la racine ou ajuste le chemin.
 
-    // Chargement du fichier JSON en local
-    async function loadResponses() {
-        try {
-            const response = await fetch("data.json");
-            if (!response.ok) throw new Error("Erreur lors du chargement des réponses.");
-            responses = await response.json();
-            console.log("Réponses chargées:", responses);
-        } catch (error) {
-            console.error("Erreur dans loadResponses:", error);
+        // Charger les réponses depuis le JSON local
+        async function loadResponses() {
+            try {
+                const response = await fetch(jsonURL);
+                if (!response.ok) throw new Error("Erreur de chargement du JSON");
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error("Erreur dans loadResponses :", error);
+                return {};
+            }
         }
-    }
 
-    // Affiche un message dans le chat
-    function addMessage(text, isUser = true) {
-        const messageDiv = document.createElement("div");
-        messageDiv.classList.add("message", isUser ? "user-message" : "bot-message");
-        messageDiv.textContent = text;
-        document.getElementById("chat-log").appendChild(messageDiv);
-        document.getElementById("chat-log").scrollTop = document.getElementById("chat-log").scrollHeight;
-    }
+        // Initialisation des réponses
+        let responses = {};
+        loadResponses().then(data => { responses = data; });
 
-    // Fonction principale d'envoi de messages
-    async function sendMessage() {
-        const userInput = document.getElementById("user-input").value;
-        if (userInput.trim() === "") return;
+        // Fonction de gestion de la soumission de message
+        function handleUserMessage() {
+            const userInput = document.getElementById("userInput");
+            const message = userInput.value.trim();
+            if (message === "") return;
 
-        addMessage(userInput, true);  // Afficher le message utilisateur
-        document.getElementById("user-input").value = "";  // Effacer le champ de saisie
+            displayMessage("Vous", message, "user-message");
 
-        let botResponse = checkForSimilarQuestion(userInput);
-        if (botResponse) {
-            addMessage(botResponse, false);
-            if (confirm("Est-ce que cette réponse est correcte ?")) {
-                // Confirmation positive, rien à modifier
-            } else {
-                const newResponse = prompt("Quelle devrait être la bonne réponse ?");
-                if (newResponse) {
-                    responses[userInput] = newResponse;
-                    saveResponses();
-                    addMessage("Merci ! J'ai appris quelque chose de nouveau.", false);
+            // Traitement de la réponse de l'IA
+            const iaResponse = getIAResponse(message);
+            displayMessage("IA", iaResponse, "ia-message");
+
+            userInput.value = ""; // Effacer l'input après envoi
+        }
+
+        // Afficher les messages dans la liste
+        function displayMessage(sender, text, className) {
+            const messagesList = document.getElementById("messages");
+            const messageItem = document.createElement("li");
+            messageItem.classList.add(className);
+            messageItem.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            messagesList.appendChild(messageItem);
+            messagesList.scrollTop = messagesList.scrollHeight; // Scroll vers le bas
+        }
+
+        // Récupérer la réponse de l'IA en fonction de la similarité
+        function getIAResponse(userMessage) {
+            let bestMatch = "";
+            let highestSimilarity = 0.0;
+
+            for (const [question, answer] of Object.entries(responses)) {
+                const similarity = stringSimilarity(userMessage.toLowerCase(), question.toLowerCase());
+                if (similarity > highestSimilarity) {
+                    highestSimilarity = similarity;
+                    bestMatch = answer;
                 }
             }
-        } else {
-            addMessage("Je ne connais pas encore cette réponse. Que devrais-je répondre ?", false);
-            const newResponse = prompt("Merci d'entrer la réponse que je devrais apprendre.");
-            if (newResponse) {
-                responses[userInput] = newResponse;
-                saveResponses();
-                addMessage("Merci ! J'ai appris quelque chose de nouveau.", false);
+
+            // Si la similarité est élevée, renvoyer la réponse
+            if (highestSimilarity > 0.7) {
+                return bestMatch;
+            } else {
+                return "Je ne connais pas cette réponse. Quelle réponse dois-je donner si on me repose la même question ?";
             }
         }
-    }
 
-    // Vérifie pour une question similaire
-    function checkForSimilarQuestion(userQuestion) {
-        for (let question in responses) {
-            if (isSimilar(question, userQuestion)) {
-                return responses[question];
+        // Calcul de la similarité (simplifié)
+        function stringSimilarity(str1, str2) {
+            let matches = 0;
+            for (let i = 0; i < Math.min(str1.length, str2.length); i++) {
+                if (str1[i] === str2[i]) matches++;
             }
+            return matches / Math.max(str1.length, str2.length);
         }
-        return null;
-    }
 
-    // Fonction pour déterminer la similarité des questions
-    function isSimilar(q1, q2) {
-        return q1.toLowerCase().includes(q2.toLowerCase()) || q2.toLowerCase().includes(q1.toLowerCase());
-    }
+        // Écouter le clic sur le bouton Envoyer
+        document.getElementById("sendBtn").addEventListener("click", handleUserMessage);
+        document.getElementById("userInput").addEventListener("keydown", function (e) {
+            if (e.key === "Enter") handleUserMessage();
+        });
 
-    // Sauvegarde les nouvelles réponses dans le JSON localement
-    function saveResponses() {
-        const blob = new Blob([JSON.stringify(responses, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "data.json";
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    // Charger les réponses au démarrage
-    loadResponses();
-</script>
-
+    </script>
 </body>
 </html>
