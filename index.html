@@ -1,112 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA Interactive</title>
-    <style>
-        /* Styles de base */
-        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        #chatbox { max-width: 600px; width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background-color: #f9f9f9; }
-        #messages { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
-        #messages li { margin: 5px 0; }
-        #userInput { width: calc(100% - 60px); padding: 8px; margin-top: 10px; }
-        #sendBtn { padding: 8px 15px; }
-        .user-message { color: blue; }
-        .ia-message { color: green; }
-    </style>
+    <title>Questions et Réponses</title>
 </head>
 <body>
-
-    <h1>Interaction avec l'IA</h1>
-    <div id="chatbox">
-        <ul id="messages"></ul>
-        <input type="text" id="userInput" placeholder="Écris quelque chose..." />
-        <button id="sendBtn">Envoyer</button>
-    </div>
+    <h1>Stocker des Questions et Réponses</h1>
+    <input type="text" id="question" placeholder="Entrez votre question" required>
+    <input type="text" id="reponse" placeholder="Entrez votre réponse" required>
+    <button onclick="submitData()">Soumettre</button>
 
     <script>
-        // URL du fichier JSON local
-        const jsonURL = "data.json"; // Assure-toi que ce fichier est à la racine ou ajuste le chemin.
+        async function submitData() {
+            const question = document.getElementById('question').value;
+            const reponse = document.getElementById('reponse').value;
 
-        // Charger les réponses depuis le JSON local
-        async function loadResponses() {
-            try {
-                const response = await fetch(jsonURL);
-                if (!response.ok) throw new Error("Erreur de chargement du JSON");
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error("Erreur dans loadResponses :", error);
-                return {};
-            }
-        }
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question, reponse })
+            });
 
-        // Initialisation des réponses
-        let responses = {};
-        loadResponses().then(data => { responses = data; });
-
-        // Fonction de gestion de la soumission de message
-        function handleUserMessage() {
-            const userInput = document.getElementById("userInput");
-            const message = userInput.value.trim();
-            if (message === "") return;
-
-            displayMessage("Vous", message, "user-message");
-
-            // Traitement de la réponse de l'IA
-            const iaResponse = getIAResponse(message);
-            displayMessage("IA", iaResponse, "ia-message");
-
-            userInput.value = ""; // Effacer l'input après envoi
-        }
-
-        // Afficher les messages dans la liste
-        function displayMessage(sender, text, className) {
-            const messagesList = document.getElementById("messages");
-            const messageItem = document.createElement("li");
-            messageItem.classList.add(className);
-            messageItem.innerHTML = `<strong>${sender}:</strong> ${text}`;
-            messagesList.appendChild(messageItem);
-            messagesList.scrollTop = messagesList.scrollHeight; // Scroll vers le bas
-        }
-
-        // Récupérer la réponse de l'IA en fonction de la similarité
-        function getIAResponse(userMessage) {
-            let bestMatch = "";
-            let highestSimilarity = 0.0;
-
-            for (const [question, answer] of Object.entries(responses)) {
-                const similarity = stringSimilarity(userMessage.toLowerCase(), question.toLowerCase());
-                if (similarity > highestSimilarity) {
-                    highestSimilarity = similarity;
-                    bestMatch = answer;
-                }
-            }
-
-            // Si la similarité est élevée, renvoyer la réponse
-            if (highestSimilarity > 0.7) {
-                return bestMatch;
+            if (response.ok) {
+                document.getElementById('question').value = '';
+                document.getElementById('reponse').value = '';
+                alert('Question et réponse soumises avec succès !');
             } else {
-                return "Je ne connais pas cette réponse. Quelle réponse dois-je donner si on me repose la même question ?";
+                alert('Erreur lors de la soumission.');
             }
         }
-
-        // Calcul de la similarité (simplifié)
-        function stringSimilarity(str1, str2) {
-            let matches = 0;
-            for (let i = 0; i < Math.min(str1.length, str2.length); i++) {
-                if (str1[i] === str2[i]) matches++;
-            }
-            return matches / Math.max(str1.length, str2.length);
-        }
-
-        // Écouter le clic sur le bouton Envoyer
-        document.getElementById("sendBtn").addEventListener("click", handleUserMessage);
-        document.getElementById("userInput").addEventListener("keydown", function (e) {
-            if (e.key === "Enter") handleUserMessage();
-        });
-
     </script>
 </body>
 </html>
